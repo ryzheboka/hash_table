@@ -108,6 +108,7 @@ void delete_entry_by_key(struct Table table, char *key)
 void delete_entry(struct Table table, struct TableEntry *entry)
 {
 	table.number_of_elements -= 1;
+	table.entries[hash(entry->key) % table.size] = 0;
 	free(entry->key);
 	free(entry->value);
 	free(entry);
