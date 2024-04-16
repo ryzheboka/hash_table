@@ -1,1 +1,1 @@
-all : main.c hash_table.c ; gcc -Werror -Wall main.c hash_table.c -o main
+all : main.c hash_table.c tests.c multithreading.c; gcc -Werror -Wall tests.c main.c hash_table.c multithreading.c -o main

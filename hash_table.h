@@ -1,3 +1,7 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
 struct TableEntry
 {
 	char *key;
@@ -20,6 +24,5 @@ struct TableEntry *read_entry(struct Table table, char *key);
 
 void insert_entry(struct Table table, char *key, char *value);
 
-void delete_entry_by_key(struct Table table, char *key);
-void delete_entry(struct Table table, struct TableEntry *entry);
+void delete_entry(struct Table table, char *key);
 unsigned long hash(char *key);

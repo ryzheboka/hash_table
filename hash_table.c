@@ -1,7 +1,4 @@
 #include "hash_table.h"
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 
 struct Table *initialize_table(unsigned int size)
 {
@@ -53,14 +50,14 @@ void insert_entry(struct Table table, char *key, char *value)
 	}
 	else
 	{
-		printf("Collision!\n");
+		// printf("Collision!\n");
 		struct TableEntry *currentEntry = table.entries[index];
 		if (strcmp(currentEntry->key, key) == 0)
 		{
 			printf("The key already exists and can't be inserted!\n");
 			return;
 		}
-		while (currentEntry->next)
+		while (currentEntry->next != 0)
 		{
 			if (strcmp(currentEntry->key, key) == 0)
 			{
@@ -84,7 +81,7 @@ struct TableEntry *read_entry(struct Table table, char *key)
 		return current_entry;
 	}
 
-	while (current_entry != 0 && current_entry->next != NULL)
+	while (current_entry != 0 && current_entry->next != 0)
 	{
 		current_entry = current_entry->next;
 		if (strcmp(current_entry->key, key) == 0)
@@ -95,30 +92,45 @@ struct TableEntry *read_entry(struct Table table, char *key)
 
 	printf("The key \"%s\" doesn't exist in the table!\n", key);
 
-	return table.entries[index];
+	return NULL;
 }
 
-void delete_entry_by_key(struct Table table, char *key)
-{
-	struct TableEntry *entry = read_entry(table, key);
-	if (entry)
-		delete_entry(table, entry);
-}
-
-void delete_entry(struct Table table, struct TableEntry *entry)
+void delete_entry(struct Table table, char *key)
 {
 	table.number_of_elements -= 1;
-	table.entries[hash(entry->key) % table.size] = 0;
-	free(entry->key);
-	free(entry->value);
-	free(entry);
+	unsigned long index = hash(key) % table.size;
+	struct TableEntry *current_entry = table.entries[index];
+
+	if (current_entry != 0 && strcmp((current_entry->key), key) == 0)
+	{
+		table.entries[index] = 0;
+		free(current_entry->key);
+		free(current_entry->value);
+		free(current_entry);
+		return;
+	}
+
+	while (current_entry != 0 && current_entry->next != 0)
+	{
+		if (strcmp(current_entry->next->key, key) == 0)
+		{
+			current_entry->next = current_entry->next->next;
+			free(current_entry->next->key);
+			free(current_entry->next->value);
+			free(current_entry->next);
+			return;
+		}
+		current_entry = current_entry->next;
+	}
+
+	printf("The key \"%s\" doesn't exist in the table!\n", key);
 }
 
 void delete_table(struct Table *table)
 {
 	for (int i = 0; i < table->number_of_elements; i++)
 	{
-		delete_entry(*table, table->entries[i]);
+		delete_entry(*table, table->entries[i]->key);
 	}
 	free(table->entries);
 	free(table);
