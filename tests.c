@@ -1,6 +1,6 @@
 #include "tests.h"
 
-unsigned int MAX_NUMBER_OF_THREADS = 10;
+#define MAX_NUMBER_OF_THREADS 10
 
 /*void test(struct Table table)
 {
@@ -39,20 +39,15 @@ void test_concurrent(struct Table table)
 	printf("starting concurrent test\n");
 
 	pthread_t *thread_ids = malloc(sizeof(pthread_t) * MAX_NUMBER_OF_THREADS);
-	struct InputProcessingInfo *processing_info = start_multithreaded_input_processing(table, "read key", &thread_ids[0]);
-	struct InputProcessingInfo *processing_info2 = start_multithreaded_input_processing(table, "write concurrent, new_val", &thread_ids[1]);
-	struct InputProcessingInfo *processing_info4 = start_multithreaded_input_processing(table, "write concurrent2, new_val2", &thread_ids[2]);
-	struct InputProcessingInfo *processing_info3 = start_multithreaded_input_processing(table, "read concurrent", &thread_ids[3]);
-	struct InputProcessingInfo *processing_info8 = start_multithreaded_input_processing(table, "read concurrent", &thread_ids[7]);
-	struct InputProcessingInfo *processing_info5 = start_multithreaded_input_processing(table, "read concurrent2", &thread_ids[4]);
-	struct InputProcessingInfo *processing_info6 = start_multithreaded_input_processing(table, "delete concurrent", &thread_ids[5]);
-	struct InputProcessingInfo *processing_info9 = start_multithreaded_input_processing(table, "write concurrent3, new_val3", &thread_ids[8]);
-	struct InputProcessingInfo *processing_info7 = start_multithreaded_input_processing(table, "read concurrent", &thread_ids[9]);
-
-	if (!processing_info3)
-	{
-		printf("malloc() returned NULL while processing input\n");
-	}
+	start_multithreaded_input_processing(table, "read key", &thread_ids[0]);
+	start_multithreaded_input_processing(table, "write concurrent, new_val", &thread_ids[1]);
+	start_multithreaded_input_processing(table, "write concurrent2, new_val2", &thread_ids[2]);
+	start_multithreaded_input_processing(table, "read concurrent", &thread_ids[3]);
+	start_multithreaded_input_processing(table, "read concurrent", &thread_ids[7]);
+	start_multithreaded_input_processing(table, "read concurrent2", &thread_ids[4]);
+	start_multithreaded_input_processing(table, "delete concurrent", &thread_ids[5]);
+	start_multithreaded_input_processing(table, "write concurrent3, new_val3", &thread_ids[8]);
+	start_multithreaded_input_processing(table, "read concurrent", &thread_ids[9]);
 
 	pthread_join(thread_ids[1], NULL);
 	pthread_join(thread_ids[0], NULL);
@@ -68,7 +63,7 @@ void test_concurrent(struct Table table)
 	//{
 	// printf("Read lock succeeded\n");
 	// delete_table((struct Table *)&table);
-	free(processing_info);
+	/*free(processing_info);
 	free(processing_info2);
 	free(processing_info3);
 	free(processing_info4);
@@ -76,9 +71,8 @@ void test_concurrent(struct Table table)
 	free(processing_info6);
 	free(processing_info7);
 	free(processing_info8);
-	free(processing_info9);
+	free(processing_info9);*/
 
 	// printf("The value for the key \"key\": \"%s\" \n", entry->value);
-	// free(thread_ids);
-	destroy_lock();
+	free(thread_ids);
 }

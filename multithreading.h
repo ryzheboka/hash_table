@@ -10,6 +10,6 @@ struct InputProcessingInfo
 	char *input;
 };
 
-struct InputProcessingInfo *start_multithreaded_input_processing(struct Table table, char *input, pthread_t *threadId);
+void start_multithreaded_input_processing(struct Table table, char *input, pthread_t *threadId);
 void *process_input(void *process_input);
 void destroy_lock();

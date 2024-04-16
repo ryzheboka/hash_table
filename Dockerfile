@@ -4,6 +4,8 @@ COPY . /hash_table
 
 WORKDIR /hash_table/
 
-RUN make
+RUN make server
+
+RUN make client
 
 CMD ["./main", "4"]

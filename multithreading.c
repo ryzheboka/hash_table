@@ -11,6 +11,7 @@ void *process_input(void *process_input)
 		if (pthread_rwlock_rdlock(p) != 0)
 		{
 			printf("Locking failed. Aborting operation");
+			free(input);
 			return NULL;
 		}
 		// printf("Read lock succeeded\n");
@@ -18,6 +19,7 @@ void *process_input(void *process_input)
 		if (pthread_rwlock_unlock(p) != 0)
 		{
 			printf("Unlocking failed. Aborting operation");
+			free(input);
 			return NULL;
 		}
 		if (entry)
@@ -30,6 +32,8 @@ void *process_input(void *process_input)
 		if (pthread_rwlock_wrlock(p) != 0)
 		{
 			printf("Locking failed. Aborting operation");
+			free(input);
+
 			return NULL;
 		}
 		// printf("Read lock succeeded\n");
@@ -37,9 +41,13 @@ void *process_input(void *process_input)
 		if (pthread_rwlock_unlock(p) != 0)
 		{
 			printf("Unlocking failed. Aborting operation");
+			free(input);
+
 			return NULL;
 		}
 		// printf("The value for the key \"key\": \"%s\" \n", entry->value);
+		free(input);
+
 		return NULL;
 	}
 
@@ -54,6 +62,8 @@ void *process_input(void *process_input)
 		if (pthread_rwlock_wrlock(p) != 0)
 		{
 			printf("Locking failed. Aborting operation");
+			free(input);
+
 			return NULL;
 		}
 
@@ -63,26 +73,35 @@ void *process_input(void *process_input)
 		{
 
 			printf("Unlocking failed. Aborting operation");
+			free(input);
+
 			return NULL;
 			// printf("The value for the key \"key\": \"%s\" \n", entry->value);
 		}
+		free(input);
 		return NULL;
 	}
+	printf("The command doesn't exist!\n");
 	return NULL;
+	free(input);
 }
 
-struct InputProcessingInfo *start_multithreaded_input_processing(struct Table table, char *input, pthread_t *threadId)
+void start_multithreaded_input_processing(struct Table table, char *input, pthread_t *threadId)
 {
 	struct InputProcessingInfo *processing_info = malloc(sizeof(struct InputProcessingInfo));
 	if (!processing_info)
 	{
 		printf("malloc() returned NULL while processing input\n");
-		return NULL;
+		return;
 	}
 	processing_info->table = table;
 	processing_info->input = strdup(input);
-	pthread_create(threadId, NULL, process_input, processing_info);
-	return processing_info;
+	if (pthread_create(threadId, NULL, process_input, processing_info) != 0)
+	{
+		printf("Error while creating a new thread\n");
+		exit(1);
+	};
+	return;
 }
 
 void destroy_lock()
