@@ -23,7 +23,22 @@ void *process_input(void *process_input)
 			return NULL;
 		}
 		if (entry)
-			printf("The value for the key \"%s\": \"%s\" \n", entry->key, entry->value);
+		{
+			// printf("The value for the key \"%s\": \"%s\" \n", entry->key, entry->value);
+			if (sem_wait(input->mutex) == -1)
+			{
+				printf("Error while waiting for PROCESSED_COMMAND mutex\n");
+				// TODO: Release shared memory
+				return NULL;
+			}
+			snprintf(input->memory_ptr, 30 + strlen(entry->key) + strlen(entry->value), "The value for the key \"%s\": \"%s\" \n", entry->key, entry->value);
+			if (sem_post(input->mutex) == -1)
+			{
+				printf("Error while waiting for PROCESSED_COMMAND mutex\n");
+				// TODO: Release shared memory
+				return NULL;
+			}
+		}
 		return NULL;
 	}
 
@@ -81,12 +96,12 @@ void *process_input(void *process_input)
 		free(input);
 		return NULL;
 	}
-	printf("The command doesn't exist!\n");
+	printf("The command doesn't exist!");
 	return NULL;
 	free(input);
 }
 
-void start_multithreaded_input_processing(struct Table table, char *input, pthread_t *threadId)
+void start_multithreaded_input_processing(struct Table table, char *input, pthread_t *threadId, char *memory_ptr, sem_t *mutex)
 {
 	struct InputProcessingInfo *processing_info = malloc(sizeof(struct InputProcessingInfo));
 	if (!processing_info)
@@ -96,6 +111,8 @@ void start_multithreaded_input_processing(struct Table table, char *input, pthre
 	}
 	processing_info->table = table;
 	processing_info->input = strdup(input);
+	processing_info->memory_ptr = memory_ptr;
+	processing_info->mutex = mutex;
 	if (pthread_create(threadId, NULL, process_input, processing_info) != 0)
 	{
 		printf("Error while creating a new thread\n");

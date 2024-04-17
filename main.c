@@ -1,9 +1,7 @@
-// #include "hash_table.h"
-#include "tests.h"
+#include "multithreading.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
-#include <semaphore.h>
 #include <sys/mman.h>
 // #include <pthread.h>
 #include <string.h>
@@ -12,8 +10,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#define MUTEX_NAME "/inner-mutex"
-#define AVAILABLE_COMMANDS "/available-commands"
+#define PROCESSED_COMMAND "/processed-command"
+#define AVAILABLE_COMMAND "/available-command"
 #define SHARED_MEMORY "/shared-memory"
 #define MAX_SIZE_OF_COMMAND 256
 #define MAX_NUMBER_OF_THREADS 5
@@ -45,16 +43,16 @@ void communicate_with_clients(struct Table table)
 
     pthread_t *thread_ids = malloc(sizeof(pthread_t) * MAX_NUMBER_OF_THREADS);
     int current_number_of_threads = 0;
-    sem_t *mutex = sem_open(MUTEX_NAME, O_CREAT, 0660, 0);
-    if (mutex == SEM_FAILED)
+    sem_t *processed_command_mutex = sem_open(PROCESSED_COMMAND, O_CREAT, 0660, 0);
+    if (processed_command_mutex == SEM_FAILED)
     {
-        printf("Couldn't create the mutex\n");
+        printf("Couldn't create the PROCESS_COMMAND mutex\n");
         return;
     }
-    sem_t *available_commands = sem_open(AVAILABLE_COMMANDS, O_CREAT, 0660, 0);
-    if (available_commands == SEM_FAILED)
+    sem_t *available_command_mutex = sem_open(AVAILABLE_COMMAND, O_CREAT, 0660, 0);
+    if (available_command_mutex == SEM_FAILED)
     {
-        printf("Couldn't create the second mutex\n");
+        printf("Couldn't create the AVAILABLE_COMMAND mutex\n");
         return;
     }
     int shared_memory = shm_open(SHARED_MEMORY, O_RDWR | O_CREAT | O_EXCL, 0660);
@@ -78,43 +76,47 @@ void communicate_with_clients(struct Table table)
         return;
     }
 
-    if (sem_post(mutex) == -1)
+    /*if (sem_post(processed_command_mutex) == -1)
     {
-        printf("Coulnd't release mutex\n");
+        printf("Coulnd't release PROCESSED_COMMAND mutex\n");
         return;
-    }
+    }*/
     char *command = calloc(1, MAX_SIZE_OF_COMMAND);
 
+    printf("Server initialized successfully!\n");
     while (strcmp(command, "exit") != 0)
     {
 
         if (current_number_of_threads == MAX_NUMBER_OF_THREADS)
         {
-            // printf("Reached max number of threads\n");
             while (current_number_of_threads > 0)
             {
-                // printf("%d\n", pthread_join(thread_ids[current_number_of_threads - 1], NULL));
-                //  pthread_join(thread_ids[current_number_of_threads - 1], NULL);
+                // pthread_join(thread_ids[current_number_of_threads - 1], NULL));
+                if (pthread_join(thread_ids[current_number_of_threads - 1], NULL) != 0)
+                {
+                    printf("Error while joining threads");
+                    exit(1);
+                }
                 current_number_of_threads -= 1;
             }
             // printf("Joined all Threads\n");
         }
-        if (sem_wait(available_commands) == -1)
+        if (sem_wait(available_command_mutex) == -1)
         {
             printf("Error while waiting for mutex\n");
-            // TODO: Release shared memory
             return;
         }
-        strcpy(command, shared_memory_ptr);
-        *shared_memory_ptr = 0;
-        // printf("start processing\n");
-        if (sem_post(mutex) == -1)
+        printf("Copying command\n");
+        strncpy(command, shared_memory_ptr, MAX_SIZE_OF_COMMAND);
+        *shared_memory_ptr = '\0';
+        printf("start processing\n");
+        if (sem_post(processed_command_mutex) == -1)
         {
-            printf("Error while releasing mutex\n");
+            printf("Error while releasing PROCESSED_COMMAND mutex\n");
             // TODO: Release shared memory
             return;
         }
-        start_multithreaded_input_processing(table, command, &thread_ids[current_number_of_threads]);
+        start_multithreaded_input_processing(table, command, &thread_ids[current_number_of_threads], shared_memory_ptr, processed_command_mutex);
         // printf("end processing\n");
         current_number_of_threads++;
     }
@@ -129,9 +131,9 @@ void communicate_with_clients(struct Table table)
         printf("Error unlinking shared memory");
     };
     free(thread_ids);
-    if (sem_close(mutex) != 0)
+    if (sem_close(processed_command_mutex) != 0)
     {
-        printf("Error closing the mutex");
+        printf("Error closing the PROCESSED_COMMAND mutex");
     }
     return;
 }

@@ -5,14 +5,21 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
 #define SHARED_MEMORY "/shared-memory"
-#define INNER_MUTEX_NAME "/inner-mutex"
-#define AVAILABLE_COMMANDS "/available-commands"
+#define PROCESSED_COMMAND "/processed-command"
+#define AVAILABLE_COMMAND "/available-command"
 #define MAX_SIZE_OF_COMMAND 256
 
 void communicate_with_server();
 void exit_programm(sem_t *, sem_t *, char *, int);
+
+struct AnswerListenerArg
+{
+	char *memory_ptr;
+	sem_t *mutex;
+};
 
 int main(int argc, char **argv)
 {
@@ -24,23 +31,55 @@ int main(int argc, char **argv)
 	communicate_with_server();
 	return EXIT_SUCCESS;
 }
+void *listen_for_answer(void *mutex_and_shared_memory_ptr)
+{
+	struct AnswerListenerArg *arg = mutex_and_shared_memory_ptr;
+	sem_t *access_mutex = arg->mutex;
+	char *shared_memory_ptr = arg->memory_ptr;
+	while (1)
+	{
+		if (sem_wait(access_mutex) == -1)
+		{
+			printf("Error while waiting for mutex\n");
+			free(arg);
+			return NULL;
+		}
+		if (*shared_memory_ptr != '\0')
+			printf("Answer: %s\n", shared_memory_ptr);
+		*shared_memory_ptr = '\0';
 
+		/*if (sem_post(access_mutex) == -1)
+		{
+			printf("Coulnd't release mutex\n");
+			exit(1);
+		}*/
+		if (sem_post(access_mutex) == -1)
+		{
+			printf("Coulnd't wait for mutex\n");
+			free(arg);
+			exit(1);
+		}
+	}
+	free(arg);
+	return NULL;
+}
 void communicate_with_server()
 {
 	printf("Started client\n");
-	sem_t *access_mutex = sem_open(INNER_MUTEX_NAME, O_CREAT, 0660, 0);
+	sem_t *access_mutex = sem_open(PROCESSED_COMMAND, O_CREAT, 0660, 0);
 	// printf("After first inner\n");
 	if (access_mutex == SEM_FAILED)
 	{
 		printf("Couldn't create the mutex\n");
 		return;
 	}
-	sem_t *outer_mutex = sem_open(AVAILABLE_COMMANDS, O_CREAT, 0660, 0);
+	sem_t *outer_mutex = sem_open(AVAILABLE_COMMAND, O_CREAT, 0660, 0);
 	if (outer_mutex == SEM_FAILED)
 	{
 		printf("Couldn't create the mutex\n");
 		return;
 	}
+	sleep(3);
 	int shared_memory = shm_open(SHARED_MEMORY, O_RDWR, 0660);
 	if (shared_memory == -1)
 	{
@@ -84,15 +123,28 @@ void communicate_with_server()
 		exit(1);
 	}
 	printf("Before outer\n");
-	if (sem_post(outer_mutex) == -1)
+	/*if (sem_post(outer_mutex) == -1)
 	{
 		printf("Coulnd't release mutex\n");
 		exit(1);
+	}*/
+	struct AnswerListenerArg *listener_arg = malloc(sizeof(struct AnswerListenerArg));
+	if (!listener_arg)
+	{
+		printf("malloc() returned NULL\n");
+		exit(1);
 	}
-	char *command = malloc(MAX_SIZE_OF_COMMAND);
+	listener_arg->memory_ptr = shared_memory_ptr;
+	listener_arg->mutex = access_mutex;
 	// printf("After outer\n");
+	pthread_t *thread_id = malloc(sizeof(pthread_t));
+	if (pthread_create(thread_id, NULL, listen_for_answer, listener_arg) != 0)
+	{
+		printf("Error while creating a new thread\n");
+		exit(1);
+	};
+	char *command = malloc(MAX_SIZE_OF_COMMAND);
 	printf("Command: ");
-
 	while (fgets(command, MAX_SIZE_OF_COMMAND, stdin))
 	{
 		int length = strlen(command);
@@ -121,8 +173,7 @@ void communicate_with_server()
 			}*/
 			if (sem_post(outer_mutex) == -1)
 			{
-				/
-					printf("Coulnd't wait for mutex\n");
+				printf("Coulnd't wait for mutex\n");
 				exit(1);
 			}
 		}
