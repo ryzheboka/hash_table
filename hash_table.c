@@ -18,58 +18,60 @@ struct Table *initialize_table(unsigned int size)
 	hash_table->number_of_elements = 0;
 	return hash_table;
 }
-void insert_entry(struct Table table, char *key, char *value)
+char *insert_entry(struct Table table, char *key, char *value)
 {
 	struct TableEntry *newEntry = malloc(sizeof(struct TableEntry));
 	if (!newEntry)
 	{
 		printf("malloc() returned NULL while initializing new entry!");
-		return;
+		exit(EXIT_FAILURE);
 	}
 	newEntry->key = strdup(key);
 	if (!newEntry->key)
 	{
 		printf("malloc() returned NULL while initializing new entry!");
-		return;
+		exit(EXIT_FAILURE);
 	}
 
 	newEntry->value = strdup(value);
 	if (!newEntry->value)
 	{
 		printf("malloc() returned NULL while initializing new entry!");
-		return;
+		exit(EXIT_FAILURE);
 	}
 	newEntry->next = NULL;
+	newEntry->error = NULL;
 	unsigned long index = hash(key) % table.size;
 
 	if (table.entries[index] == 0)
 	{
 		table.entries[index] = newEntry;
 		table.number_of_elements++;
-		return;
+		return NULL;
 	}
 	else
 	{
-		// printf("Collision!\n");
 		struct TableEntry *currentEntry = table.entries[index];
 		if (strcmp(currentEntry->key, key) == 0)
 		{
-			printf("The key already exists and can't be inserted!\n");
-			return;
+			char *error = malloc(38 + sizeof(key));
+			snprintf(error, 50 + sizeof(key), "The key \"%s\" already exists and can't be inserted!", key);
+			return error;
 		}
 		while (currentEntry->next != 0)
 		{
 			if (strcmp(currentEntry->key, key) == 0)
 			{
-				printf("The key already exists and can't be inserted!\n");
-				return;
+				char *error = malloc(38 + sizeof(key));
+				snprintf(error, 50 + sizeof(key), "The key \"%s\" already exists and can't be inserted!", key);
+				return error;
 			}
 			currentEntry = currentEntry->next;
 		}
 		currentEntry->next = newEntry;
 	}
 
-	return;
+	return NULL;
 }
 struct TableEntry *read_entry(struct Table table, char *key)
 {
@@ -89,13 +91,14 @@ struct TableEntry *read_entry(struct Table table, char *key)
 			return current_entry;
 		}
 	}
+	struct TableEntry *error_entry = calloc(1, sizeof(struct TableEntry));
+	error_entry->error = malloc(38 + sizeof(key));
+	snprintf(error_entry->error, 38 + sizeof(key), "The key \"%s\" doesn't exist in the table!\n", key);
 
-	printf("The key \"%s\" doesn't exist in the table!\n", key);
-
-	return NULL;
+	return error_entry;
 }
 
-void delete_entry(struct Table table, char *key)
+char *delete_entry(struct Table table, char *key)
 {
 	table.number_of_elements -= 1;
 	unsigned long index = hash(key) % table.size;
@@ -107,7 +110,7 @@ void delete_entry(struct Table table, char *key)
 		free(current_entry->key);
 		free(current_entry->value);
 		free(current_entry);
-		return;
+		return NULL;
 	}
 
 	while (current_entry != 0 && current_entry->next != 0)
@@ -118,12 +121,15 @@ void delete_entry(struct Table table, char *key)
 			free(current_entry->next->key);
 			free(current_entry->next->value);
 			free(current_entry->next);
-			return;
+			return NULL;
 		}
 		current_entry = current_entry->next;
 	}
 
-	printf("The key \"%s\" doesn't exist in the table!\n", key);
+	char *error = malloc(38 + sizeof(key));
+	snprintf(error, 38 + sizeof(key), "The key \"%s\" doesn't exist in the table!\n", key);
+
+	return error;
 }
 
 void delete_table(struct Table *table)

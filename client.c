@@ -44,15 +44,14 @@ void *listen_for_answer(void *mutex_and_shared_memory_ptr)
 			free(arg);
 			return NULL;
 		}
+		if (strncmp(shared_memory_ptr, "exit", 4) == 0)
+		{
+			free(arg);
+			return NULL;
+		}
 		if (*shared_memory_ptr != '\0')
 			printf("Answer: %s\n", shared_memory_ptr);
 		*shared_memory_ptr = '\0';
-
-		/*if (sem_post(access_mutex) == -1)
-		{
-			printf("Coulnd't release mutex\n");
-			exit(1);
-		}*/
 		if (sem_post(access_mutex) == -1)
 		{
 			printf("Coulnd't wait for mutex\n");
@@ -115,19 +114,12 @@ void communicate_with_server()
 		}
 		return;
 	}
-	printf("Before outer\n");
 
 	if (sem_post(access_mutex) == -1)
 	{
 		printf("Coulnd't release mutex\n");
 		exit(1);
 	}
-	printf("Before outer\n");
-	/*if (sem_post(outer_mutex) == -1)
-	{
-		printf("Coulnd't release mutex\n");
-		exit(1);
-	}*/
 	struct AnswerListenerArg *listener_arg = malloc(sizeof(struct AnswerListenerArg));
 	if (!listener_arg)
 	{
@@ -157,20 +149,14 @@ void communicate_with_server()
 		}
 		if (strncmp(command, "read ", 5) == 0 || strncmp(command, "write ", 6) == 0 || strncmp(command, "delete ", 7) == 0)
 		{
-			printf("Working on command %s\n", command);
+			// printf("Working on command %s\n", command);
 			if (sem_wait(access_mutex) == -1)
 			{
 				printf("Error while waiting for mutex\n");
 				exit(1);
 			}
-			printf("Sending request\n");
+			// printf("Sending request\n");
 			strcpy(shared_memory_ptr, command);
-
-			/*if (sem_post(access_mutex) == -1)
-			{
-				printf("Coulnd't release mutex\n");
-				exit(1);
-			}*/
 			if (sem_post(outer_mutex) == -1)
 			{
 				printf("Coulnd't wait for mutex\n");
@@ -185,17 +171,11 @@ void communicate_with_server()
 void exit_programm(sem_t *access_mutex, sem_t *outer_mutex, char *shared_memory_ptr, int code)
 {
 	printf("Exiting client\n");
-	if (sem_wait(outer_mutex) == -1)
-	{
-		printf("Error while waiting for mutes");
-		exit(1);
-	}
 	if (sem_wait(access_mutex) == -1)
 	{
 		printf("Error while waiting for mutes");
 		exit(1);
 	}
-	printf("Sending request\n");
 	strcpy(shared_memory_ptr, "exit");
 
 	if (sem_post(access_mutex) == -1)
@@ -215,12 +195,12 @@ void exit_programm(sem_t *access_mutex, sem_t *outer_mutex, char *shared_memory_
 	}
 	if (sem_close(outer_mutex) != 0)
 	{
-		printf("Error closing the mutex");
+		printf("Error closing the mutex\n");
 		exit(1);
 	}
 	if (sem_close(access_mutex) != 0)
 	{
-		printf("Error closing the mutex");
+		printf("Error closing the mutex\n");
 		exit(1);
 	}
 	exit(code);

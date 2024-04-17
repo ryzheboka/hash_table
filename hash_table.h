@@ -6,6 +6,7 @@ struct TableEntry
 {
 	char *key;
 	char *value;
+	char *error;
 	struct TableEntry *next;
 };
 
@@ -22,7 +23,7 @@ void delete_table(struct Table *table);
 
 struct TableEntry *read_entry(struct Table table, char *key);
 
-void insert_entry(struct Table table, char *key, char *value);
+char *insert_entry(struct Table table, char *key, char *value);
 
-void delete_entry(struct Table table, char *key);
+char *delete_entry(struct Table table, char *key);
 unsigned long hash(char *key);

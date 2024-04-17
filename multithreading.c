@@ -12,7 +12,7 @@ void *process_input(void *process_input)
 		{
 			printf("Locking failed. Aborting operation");
 			free(input);
-			return NULL;
+			exit(EXIT_FAILURE);
 		}
 		// printf("Read lock succeeded\n");
 		struct TableEntry *entry = read_entry(input->table, input->input + 5);
@@ -20,24 +20,33 @@ void *process_input(void *process_input)
 		{
 			printf("Unlocking failed. Aborting operation");
 			free(input);
-			return NULL;
+			exit(EXIT_FAILURE);
 		}
-		if (entry)
+
+		// printf("The value for the key \"%s\": \"%s\" \n", entry->key, entry->value);
+		if (sem_wait(input->mutex) == -1)
 		{
-			// printf("The value for the key \"%s\": \"%s\" \n", entry->key, entry->value);
-			if (sem_wait(input->mutex) == -1)
-			{
-				printf("Error while waiting for PROCESSED_COMMAND mutex\n");
-				// TODO: Release shared memory
-				return NULL;
-			}
+			printf("Error while waiting for PROCESSED_COMMAND mutex\n");
+			free(input);
+			// TODO: Release shared memory
+			exit(EXIT_FAILURE);
+		}
+		if (entry->error)
+			strncpy(input->memory_ptr, entry->error, strlen(entry->error));
+
+		else
 			snprintf(input->memory_ptr, 30 + strlen(entry->key) + strlen(entry->value), "The value for the key \"%s\": \"%s\" \n", entry->key, entry->value);
-			if (sem_post(input->mutex) == -1)
-			{
-				printf("Error while waiting for PROCESSED_COMMAND mutex\n");
-				// TODO: Release shared memory
-				return NULL;
-			}
+		if (sem_post(input->mutex) == -1)
+		{
+			printf("Error while waiting for PROCESSED_COMMAND mutex\n");
+			free(input);
+			exit(EXIT_FAILURE);
+		}
+		free(input);
+		if (entry->error)
+		{
+			free(entry->error);
+			free(entry);
 		}
 		return NULL;
 	}
@@ -49,27 +58,60 @@ void *process_input(void *process_input)
 			printf("Locking failed. Aborting operation");
 			free(input);
 
-			return NULL;
+			exit(EXIT_FAILURE);
 		}
 		// printf("Read lock succeeded\n");
-		delete_entry(input->table, input->input + 7);
+		char *error = delete_entry(input->table, input->input + 7);
 		if (pthread_rwlock_unlock(p) != 0)
 		{
 			printf("Unlocking failed. Aborting operation");
 			free(input);
+			if (error)
+			{
+				free(error);
+			}
+			exit(EXIT_FAILURE);
+		}
+		if (error)
+		{
+			if (sem_wait(input->mutex) == -1)
+			{
+				printf("Error while waiting for PROCESSED_COMMAND mutex\n");
+				free(input);
+				free(error);
+				// TODO: Release shared memory
+				return NULL;
+			}
 
+			strncpy(input->memory_ptr, error, strlen(error));
+
+			if (sem_post(input->mutex) == -1)
+			{
+				printf("Error while waiting for PROCESSED_COMMAND mutex\n");
+				free(input);
+				free(error);
+				// TODO: Release shared memory
+				return NULL;
+			}
+			// printf("The value for the key \"key\": \"%s\" \n", entry->value);
+			free(input);
+			if (error)
+			{
+				free(error);
+			}
 			return NULL;
 		}
-		// printf("The value for the key \"key\": \"%s\" \n", entry->value);
-		free(input);
-
-		return NULL;
 	}
 
 	if (strncmp(input->input, "write ", 6) == 0)
 	{
 		char *attributes;
 		attributes = input->input + 6;
+		if (strchr(attributes, ',') == NULL)
+		{
+			strncpy(input->memory_ptr, "Key and value need to be separated by ,", 40);
+			return NULL;
+		}
 		char *key = strsep(&attributes, ",");
 		char *value = strsep(&attributes, ",");
 		// printf("kkkey: %s, vvvvlue: %s\n", key, value);
@@ -78,25 +120,53 @@ void *process_input(void *process_input)
 		{
 			printf("Locking failed. Aborting operation");
 			free(input);
-
-			return NULL;
+			exit(EXIT_FAILURE);
 		}
 
 		// printf("Lock succeded!\n");
-		insert_entry(input->table, key, value);
+		char *error = insert_entry(input->table, key, value);
 		if (pthread_rwlock_unlock(p) != 0)
 		{
 
 			printf("Unlocking failed. Aborting operation");
 			free(input);
-
-			return NULL;
+			if (error)
+			{
+				free(error);
+			}
+			exit(EXIT_FAILURE);
 			// printf("The value for the key \"key\": \"%s\" \n", entry->value);
+		}
+		if (error)
+		{
+			if (sem_wait(input->mutex) == -1)
+			{
+				printf("Error while waiting for PROCESSED_COMMAND mutex\n");
+				free(input);
+				free(error);
+				exit(EXIT_FAILURE);
+			}
+
+			strncpy(input->memory_ptr, error, strlen(error));
+
+			if (sem_post(input->mutex) == -1)
+			{
+				printf("Error while waiting for PROCESSED_COMMAND mutex\n");
+				free(input);
+				free(error);
+				exit(EXIT_FAILURE);
+			}
+			// printf("The value for the key \"key\": \"%s\" \n", entry->value);
+			free(input);
+			if (error)
+			{
+				free(error);
+			}
+			return NULL;
 		}
 		free(input);
 		return NULL;
 	}
-	printf("The command doesn't exist!");
 	return NULL;
 	free(input);
 }

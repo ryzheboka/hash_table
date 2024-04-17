@@ -7,5 +7,3 @@ WORKDIR /hash_table/
 RUN make server
 
 RUN make client
-
-CMD ["./main", "4"]
