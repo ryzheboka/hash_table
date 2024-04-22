@@ -1,5 +1,6 @@
 #include "multithreading.h"
 
+#define MAX_NUMBER_OF_STRINGS 32
 pthread_rwlock_t lock_rw = PTHREAD_RWLOCK_INITIALIZER;
 
 void *process_input(void *process_input)
@@ -146,7 +147,38 @@ void *process_input(void *process_input)
 		attributes = input->input + 6;
 		if (strchr(attributes, ',') == NULL)
 		{
-			strncpy(input->memory_ptr, "Key and value need to be separated by ,", 40);
+			if (sem_wait(input->sem_free_answers) == -1)
+			{
+				printf("Error while waiting for sem_free_answers\n");
+				free(input);
+				// TODO: Release shared memory
+				exit(EXIT_FAILURE);
+			}
+			if (sem_wait(input->mutex) == -1)
+			{
+				printf("Error while waiting for mutex\n");
+				free(input);
+				exit(EXIT_FAILURE);
+			}
+			strncpy(input->memory_ptr->answers[input->memory_ptr->answer_write_index], "Key and value need to be separated by ,", 40);
+			input->memory_ptr->answer_write_index++;
+			if (input->memory_ptr->answer_write_index == MAX_NUMBER_OF_STRINGS)
+			{
+				input->memory_ptr->answer_write_index = 0;
+			}
+			if (sem_post(input->mutex) == -1)
+			{
+				printf("Error while waiting for PROCESSED_COMMAND mutex\n");
+				free(input);
+				exit(EXIT_FAILURE);
+			}
+			if (sem_post(input->sem_answer_count) == -1)
+			{
+				printf("Error while waiting for sem_answer_count\n");
+				free(input);
+				// TODO: Release shared memory
+				exit(EXIT_FAILURE);
+			}
 			return NULL;
 		}
 		char *key = strsep(&attributes, ",");

@@ -47,7 +47,9 @@ char *insert_entry(struct Table table, char *key, char *value)
 	{
 		table.entries[index] = newEntry;
 		table.number_of_elements++;
-		return NULL;
+		char *error = malloc(3);
+		snprintf(error, 3, "Ok");
+		return error;
 	}
 	else
 	{
@@ -70,8 +72,9 @@ char *insert_entry(struct Table table, char *key, char *value)
 		}
 		currentEntry->next = newEntry;
 	}
-
-	return NULL;
+	char *error = malloc(3);
+	snprintf(error, 3, "Ok");
+	return error;
 }
 struct TableEntry *read_entry(struct Table table, char *key)
 {
@@ -110,7 +113,9 @@ char *delete_entry(struct Table table, char *key)
 		free(current_entry->key);
 		free(current_entry->value);
 		free(current_entry);
-		return NULL;
+		char *error = malloc(3);
+		snprintf(error, 3, "Ok");
+		return error;
 	}
 
 	while (current_entry != 0 && current_entry->next != 0)
@@ -121,7 +126,9 @@ char *delete_entry(struct Table table, char *key)
 			free(current_entry->next->key);
 			free(current_entry->next->value);
 			free(current_entry->next);
-			return NULL;
+			char *error = malloc(3);
+			snprintf(error, 3, "Ok");
+			return error;
 		}
 		current_entry = current_entry->next;
 	}

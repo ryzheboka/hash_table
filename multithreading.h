@@ -12,8 +12,10 @@ struct InputProcessingInfo
 	char *input;
 	struct SharedMemory *memory_ptr;
 	sem_t *mutex;
+	sem_t *sem_free_answers;
+	sem_t *sem_answer_count;
 };
 
-void start_multithreaded_input_processing(struct Table table, char *input, pthread_t *threadId, char *memory_ptr, sem_t *mutex, sem_t *sem_free_answers.sem_t *sem_answer_count);
+void start_multithreaded_input_processing(struct Table table, char *input, pthread_t *threadId, struct SharedMemory *memory_ptr, sem_t *mutex, sem_t *sem_free_answers, sem_t *sem_answer_count);
 void *process_input(void *process_input);
 void destroy_lock();

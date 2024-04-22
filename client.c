@@ -10,7 +10,7 @@
 
 #define SHARED_MEMORY "/shared-memory"
 #define SEM_ANSWER_COUNT "/sem-answer-count"
-#define SEM_COMMAND_COUNT "/sem-command-count"
+#define SEM_COMMAND_COUNT "/sem-command-count-1"
 #define SEM_FREE_ANSWERS "/sem-free-answers"
 #define SEM_FREE_COMMANDS "/sem-free-commands"
 #define MUTEX_SHARED_MEM "/mutex-shared-mem"
@@ -21,11 +21,11 @@
 void communicate_with_server();
 void exit_programm(sem_t *, sem_t *, struct SharedMemory *, int);
 
-struct AnswerListenerArg
+/*struct AnswerListenerArg
 {
 	struct SharedMemory *memory_ptr;
 	sem_t *mutex;
-};
+};*/
 
 int main(int argc, char **argv)
 {
@@ -37,18 +37,19 @@ int main(int argc, char **argv)
 	communicate_with_server();
 	return EXIT_SUCCESS;
 }
+/*
 void *listen_for_answer(void *mutex_and_shared_memory_ptr)
 {
 	struct AnswerListenerArg *arg = mutex_and_shared_memory_ptr;
 	sem_t *mutex_shared_mem = arg->mutex;
 	struct SharedMemory *shared_memory_ptr = arg->memory_ptr;
-	sem_t *sem_answer_count = sem_open(SEM_ANSWER_COUNT, O_CREAT, 0660, 0);
+	sem_t *sem_answer_count = sem_open(SEM_ANSWER_COUNT, O_CREAT, 0, 0);
 	if (sem_answer_count == SEM_FAILED)
 	{
 		printf("Couldn't create sem_answer_count\n");
 		return NULL;
 	}
-	sem_t *sem_free_answers = sem_open(SEM_FREE_ANSWERS, O_CREAT, 0660, MAX_NUMBER_OF_STRINGS);
+	sem_t *sem_free_answers = sem_open(SEM_FREE_ANSWERS, 0, 0, MAX_NUMBER_OF_STRINGS);
 	if (sem_free_answers == SEM_FAILED)
 	{
 		printf("Couldn't create sem_answer_count\n");
@@ -98,29 +99,43 @@ void *listen_for_answer(void *mutex_and_shared_memory_ptr)
 	free(arg);
 	return NULL;
 }
+*/
 void communicate_with_server()
 {
 	printf("Started client\n");
-	sem_t *mutex_shared_mem = sem_open(MUTEX_SHARED_MEM, O_CREAT, 0660, 0);
+	sleep(3);
+	sem_t *mutex_shared_mem = sem_open(MUTEX_SHARED_MEM, 0, 0, 0);
 	// printf("After first inner\n");
 	if (mutex_shared_mem == SEM_FAILED)
 	{
 		printf("Couldn't create the mutex\n");
 		return;
 	}
-	sem_t *sem_command_count = sem_open(SEM_COMMAND_COUNT, O_CREAT, 0660, 0);
+	sem_t *sem_command_count = sem_open(SEM_COMMAND_COUNT, 0, 0, 0);
 	if (sem_command_count == SEM_FAILED)
 	{
 		printf("Couldn't create sem_command_count\n");
 		return;
 	}
-	sem_t *sem_free_commands = sem_open(SEM_FREE_COMMANDS, O_CREAT, 0660, MAX_NUMBER_OF_STRINGS);
+	sem_t *sem_free_commands = sem_open(SEM_FREE_COMMANDS, 0, 0, MAX_NUMBER_OF_STRINGS);
 	if (sem_free_commands == SEM_FAILED)
 	{
 		printf("Couldn't create sem_free_commands\n");
 		return;
 	}
 	sleep(3);
+	sem_t *sem_answer_count = sem_open(SEM_ANSWER_COUNT, O_CREAT, 0, 0);
+	if (sem_answer_count == SEM_FAILED)
+	{
+		printf("Couldn't create sem_answer_count\n");
+		return;
+	}
+	sem_t *sem_free_answers = sem_open(SEM_FREE_ANSWERS, 0, 0, MAX_NUMBER_OF_STRINGS);
+	if (sem_free_answers == SEM_FAILED)
+	{
+		printf("Couldn't create sem_answer_count\n");
+		return;
+	}
 	int shared_memory = shm_open(SHARED_MEMORY, O_RDWR, 0660);
 	if (shared_memory == -1)
 	{
@@ -141,7 +156,7 @@ void communicate_with_server()
 		}
 		return;
 	}
-	struct SharedMemory *shared_memory_ptr = mmap(NULL, MAX_SIZE_OF_COMMAND, PROT_READ | PROT_WRITE, MAP_SHARED,
+	struct SharedMemory *shared_memory_ptr = mmap(NULL, sizeof(struct SharedMemory), PROT_READ | PROT_WRITE, MAP_SHARED,
 												  shared_memory, 0);
 	if (shared_memory_ptr == MAP_FAILED)
 	{
@@ -157,12 +172,7 @@ void communicate_with_server()
 		return;
 	}
 
-	if (sem_post(mutex_shared_mem) == -1)
-	{
-		printf("Coulnd't release mutex\n");
-		exit(1);
-	}
-	struct AnswerListenerArg *listener_arg = malloc(sizeof(struct AnswerListenerArg));
+	/*struct AnswerListenerArg *listener_arg = malloc(sizeof(struct AnswerListenerArg));
 	if (!listener_arg)
 	{
 		printf("malloc() returned NULL\n");
@@ -176,7 +186,7 @@ void communicate_with_server()
 	{
 		printf("Error while creating a new thread\n");
 		exit(1);
-	};
+	};*/
 	char *command = malloc(MAX_SIZE_OF_COMMAND);
 	printf("Command: ");
 	while (fgets(command, MAX_SIZE_OF_COMMAND, stdin))
@@ -191,18 +201,19 @@ void communicate_with_server()
 		}
 		if (strncmp(command, "read ", 5) == 0 || strncmp(command, "write ", 6) == 0 || strncmp(command, "delete ", 7) == 0)
 		{
+			// printf("Working on command %s\n", command);
+
 			if (sem_wait(sem_free_commands) == -1)
 			{
 				printf("Error while waiting for sem_free_requests\n");
 				exit(1);
 			}
-			// printf("Working on command %s\n", command);
 			if (sem_wait(mutex_shared_mem) == -1)
 			{
 				printf("Error while waiting for mutex\n");
 				exit(1);
 			}
-			// printf("Sending request\n");
+			printf("Sending request\n");
 			strncpy(shared_memory_ptr->requests[shared_memory_ptr->request_write_index], command, MAX_SIZE_OF_COMMAND);
 			shared_memory_ptr->request_write_index++;
 			if (shared_memory_ptr->request_write_index == MAX_NUMBER_OF_STRINGS)
@@ -219,7 +230,41 @@ void communicate_with_server()
 				printf("Coulnd't post sem_command_count\n");
 				exit(1);
 			}
+			if (sem_wait(sem_answer_count) == -1)
+			{
+				printf("Error while waiting for sem_answer_cont\n");
+				exit(1);
+			}
+			if (sem_wait(mutex_shared_mem) == -1)
+			{
+				printf("Error while waiting for mutex\n");
+				exit(1);
+			}
+
+			if (strncmp(shared_memory_ptr->answers[shared_memory_ptr->answer_read_index], "exit", 4) == 0)
+			{
+				exit(1);
+			}
+			if (*(shared_memory_ptr->answers[shared_memory_ptr->answer_read_index]) != '\0')
+				printf("Answer: %s\n", shared_memory_ptr->answers[shared_memory_ptr->answer_read_index]);
+			*(shared_memory_ptr->answers[shared_memory_ptr->answer_read_index]) = '\0';
+			shared_memory_ptr->answer_read_index++;
+			if (shared_memory_ptr->answer_read_index == MAX_NUMBER_OF_STRINGS)
+			{
+				shared_memory_ptr->answer_read_index = 0;
+			}
+			if (sem_post(mutex_shared_mem) == -1)
+			{
+				printf("Coulnd't release mutex\n");
+				exit(1);
+			}
+			if (sem_post(sem_free_answers) == -1)
+			{
+				printf("Coulnd't post sem_free_answers \n");
+				exit(1);
+			}
 		}
+
 		printf("Command: ");
 	}
 	exit_programm(mutex_shared_mem, sem_command_count, shared_memory_ptr, 1);
@@ -250,15 +295,19 @@ void exit_programm(sem_t *mutex_shared_mem, sem_t *sem_command_count, struct Sha
 		printf("Error unmapping shared memory\n");
 		exit(1);
 	}
+	printf("Exit sucessfull1\n");
 	if (sem_close(sem_command_count) != 0)
 	{
 		printf("Error closing the mutex\n");
 		exit(1);
 	}
+	printf("Exit sucessfull2\n");
+
 	if (sem_close(mutex_shared_mem) != 0)
 	{
 		printf("Error closing the mutex\n");
 		exit(1);
 	}
+	printf("Exit sucessfull\n");
 	exit(code);
 }
