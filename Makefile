@@ -1,2 +1,2 @@
-server : main.c hash_table.c multithreading.c; gcc -Werror -Wall main.c hash_table.c multithreading.c -o server
+server : main.c hash_table.c multithreading.c communication_with_clients.c; gcc -Werror -Wall main.c hash_table.c multithreading.c communication_with_clients.c -o server
 client: client.c; gcc -Werror -Wall client.c -o client
