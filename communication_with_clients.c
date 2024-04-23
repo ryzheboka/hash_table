@@ -1,4 +1,5 @@
 #include "communication_with_clients.h"
+#include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
@@ -81,7 +82,6 @@ void communicate_with_clients(struct Table table)
 
 	char *command = calloc(1, MAX_SIZE_OF_COMMAND);
 	char *input_id = calloc(1, 3);
-	// bool exiting = false;
 	if (sem_post(mutex_shared_mem) == -1)
 	{
 		printf("Coulnd't release mutex\n");
@@ -101,7 +101,6 @@ void communicate_with_clients(struct Table table)
 				}
 				current_number_of_threads -= 1;
 			}
-			// printf("Joined all Threads\n");
 		}
 		if (sem_wait(sem_command_count) == -1)
 		{
@@ -118,12 +117,6 @@ void communicate_with_clients(struct Table table)
 		strncpy(input_id, shared_memory_ptr->requests[shared_memory_ptr->request_read_index], 3);
 		strncpy(command, shared_memory_ptr->requests[shared_memory_ptr->request_read_index] + 3, MAX_SIZE_OF_COMMAND - 3);
 		// printf("Reading command %s %s \n", command, command + 3);
-
-		/*if (strncmp(command, "exit", 4) == 0)
-		{
-
-			exiting = true;
-		}*/
 
 		shared_memory_ptr->request_read_index++;
 		if (shared_memory_ptr->request_read_index == MAX_NUMBER_OF_STRINGS)

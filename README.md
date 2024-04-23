@@ -6,33 +6,33 @@ To try the hash table out, you first need to clone the repository and go to the 
 docker build -t hash_table .
 docker run -it --rm --name my-running-app hash_table sh
 ```
-Then, a shell should be open in the container. In this shell, you can open the server and the client in parallel. When using the command provided below, The server will run in the background as long as the client is running. The output of both, server and client, will be printed. The only argument of the server specifies the size of the table. The table in the example below will be able to hold maximum 10 entries without collisions. The table is not resizable, so the size specified here is final. However, collisions are resolved by maintaining a list for each entry.
+Then, a shell should be open in the container. You can start the server here by running
 
 ```
-./server 10 & ./client && fg
+./server 10
 ```
-All information relevant for the client should be printed by the client. That's why server and client should be also able to run in different terminals. However, this option is not tested, because I only tested the application using the Dockerfile.
+
+The only argument of the server specifies the size of the table. The table in the example below will be able to hold maximum 10 entries without collisions. The table is not resizable, so the size specified here is final. However, collisions are resolved by maintaining a list for each entry.
+
+To use one or multiple clients, you will need more shells. First, you need to look up the id of the container that was started by the docker run command. Then, execute the following for each additional client:
+```
+docker exec -it <your docker container id> sh
+```
+Then 
+```
+./client
+```
 
 Then, you should wait for the following output:
 ```
 Started client
-Server initialized successfully!
 Command:
 ```
 Then, you can type a command for the hash table. The answer to this commands will be preceeded with "Answer:" . Here is an example containing possible input and corresponding output.
 ```
 Command: read key
-Command: Answer: The key "key" doesn't exist in the table!
+Answer: The key "key" doesn't exist in the table!
 
-```
-Your input in the example below is "read key". After getting the answer, you need to press enter to give the next command. The formatting looks a little strange in this example. That's because an answer is printed as soon as it's there. Theoritically, it is possible to give two commands before becoming both answers after each other. However, you would need to either give the commands extremely fast, or add sleep() to the input processing function to simulate following example:
-
-```
-Command: read key
-Command: read key2
-Command: Answer: The key "key" doesn't exist in the table!
-
-Answer: The key "key2" doesn't exist in the table!
 
 ```
 Another example:
@@ -40,17 +40,15 @@ Another example:
 ```
 Command: write key1,value
 Command: read key1
-Command: Answer: The value for the key "key1": "value" 
+Answer: The value for the key "key1": "value" 
 ```
-After using the hash_table, you need to delete it and exit all related processes by typing exit:
+After using the hash_table, you need to exit the clients and the server. To exit a client, type "exit" as command. Right now, exiting the server correctly isn't possible. Press ctrl+c to exit the server
 ```
 Command: exit
 Exiting client
-Exit server!
-./server 10
 ```
 
-### All provided commands
+### All provided commands for the client
 - read key
 - write key, value
 - delete key
@@ -72,11 +70,10 @@ All in all, the error handling needs to be done more consistently. It's one of t
 
 
 ### Other limitations
+- The possiblity to exit the server correctly is really needed!
 - The code needs to be cleaned up and refactored :)
 - The project doesn't have any automatic tests anymore. It was only tested manually. Parts of the project were automatically tested during implementation. You can find these tests in the project history. However, they were deleted because they didn't comply with the new interface. The project needs automatic tests.
-- The server can only communicate with one client. It would be nice to be able to have multiple clients.
 - The table cannot be resized.
-- Multithreading lock isn't fine granular for the sake of readability.
 - The "#include"s need to be less chaotic. 
 - The Makefile needs to be improved by adding a "clean" option. Also, .h should be included in the Makefile so that the Makefile knows to execute goals after changed .h files.
 
