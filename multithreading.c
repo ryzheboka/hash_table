@@ -1,60 +1,27 @@
 #include "multithreading.h"
+#include <unistd.h>
 
 #define MAX_NUMBER_OF_STRINGS 32
 pthread_rwlock_t lock_rw = PTHREAD_RWLOCK_INITIALIZER;
 
 void *process_input(void *process_input)
 {
+	/*int random = rand() % 10 + 4;
+	printf("%d", random);
+	sleep(random);*/
+	char *answer = calloc(1, 256);
 	struct InputProcessingInfo *input = process_input;
 	pthread_rwlock_t *p = (pthread_rwlock_t *)&lock_rw;
 	if (strncmp(input->input, "read ", 5) == 0)
 	{
 		struct TableEntry *entry = read_entry(input->table, input->input + 5, p);
-
-		if (sem_wait(input->sem_free_answers) == -1)
-		{
-			printf("Error while waiting for sem_free_answers\n");
-			free(input);
-			// TODO: Release shared memory
-			exit(EXIT_FAILURE);
-		}
-		if (sem_wait(input->mutex) == -1)
-		{
-			printf("Error while waiting for mutex\n");
-			free(input);
-			// TODO: Release shared memory
-			exit(EXIT_FAILURE);
-		}
-		if (entry->error)
-			strncpy(input->memory_ptr->answers[input->memory_ptr->answer_write_index], entry->error, strlen(entry->error));
-
-		else
-			snprintf(input->memory_ptr->answers[input->memory_ptr->answer_write_index], 30 + strlen(entry->key) + strlen(entry->value), "The value for the key \"%s\": \"%s\" \n", entry->key, entry->value);
-
-		input->memory_ptr->answer_write_index++;
-		if (input->memory_ptr->answer_write_index == MAX_NUMBER_OF_STRINGS)
-		{
-			input->memory_ptr->answer_write_index = 0;
-		}
-		if (sem_post(input->mutex) == -1)
-		{
-			printf("Error while waiting for mutex\n");
-			free(input);
-			exit(EXIT_FAILURE);
-		}
-		if (sem_post(input->sem_answer_count) == -1)
-		{
-			printf("Error while waiting for mutex\n");
-			free(input);
-			exit(EXIT_FAILURE);
-		}
-		free(input);
 		if (entry->error)
 		{
-			free(entry->error);
+			strncpy(answer, entry->error, strlen(entry->error));
 			free(entry);
 		}
-		return NULL;
+		else
+			snprintf(answer, 30 + strlen(entry->key) + strlen(entry->value), "The value for the key \"%s\": \"%s\" \n", entry->key, entry->value);
 	}
 
 	if (strncmp(input->input, "delete ", 7) == 0)
@@ -62,50 +29,7 @@ void *process_input(void *process_input)
 		char *error = delete_entry(input->table, input->input + 7, p);
 		if (error)
 		{
-			if (sem_wait(input->sem_free_answers) == -1)
-			{
-				printf("Error while waiting for sem_free_answers\n");
-				free(input);
-				// TODO: Release shared memory
-				exit(EXIT_FAILURE);
-			}
-			if (sem_wait(input->mutex) == -1)
-			{
-				printf("Error while waiting for PROCESSED_COMMAND mutex\n");
-				free(input);
-				free(error);
-				// TODO: Release shared memory
-				return NULL;
-			}
-
-			strncpy(input->memory_ptr->answers[input->memory_ptr->answer_write_index], error, strlen(error));
-			input->memory_ptr->answer_write_index++;
-			if (input->memory_ptr->answer_write_index == MAX_NUMBER_OF_STRINGS)
-			{
-				input->memory_ptr->answer_write_index = 0;
-			}
-			if (sem_post(input->mutex) == -1)
-			{
-				printf("Error while waiting for PROCESSED_COMMAND mutex\n");
-				free(input);
-				free(error);
-				// TODO: Release shared memory
-				return NULL;
-			}
-			if (sem_post(input->sem_answer_count) == -1)
-			{
-				printf("Error while releasing sem_answer_count\n");
-				free(input);
-				// TODO: Release shared memory
-				exit(EXIT_FAILURE);
-			}
-			// printf("The value for the key \"key\": \"%s\" \n", entry->value);
-			free(input);
-			if (error)
-			{
-				free(error);
-			}
-			return NULL;
+			strncpy(answer, error, strlen(error));
 		}
 	}
 
@@ -115,98 +39,63 @@ void *process_input(void *process_input)
 		attributes = input->input + 6;
 		if (strchr(attributes, ',') == NULL)
 		{
-			if (sem_wait(input->sem_free_answers) == -1)
-			{
-				printf("Error while waiting for sem_free_answers\n");
-				free(input);
-				// TODO: Release shared memory
-				exit(EXIT_FAILURE);
-			}
-			if (sem_wait(input->mutex) == -1)
-			{
-				printf("Error while waiting for mutex\n");
-				free(input);
-				exit(EXIT_FAILURE);
-			}
-			strncpy(input->memory_ptr->answers[input->memory_ptr->answer_write_index], "Key and value need to be separated by ,", 40);
-			input->memory_ptr->answer_write_index++;
-			if (input->memory_ptr->answer_write_index == MAX_NUMBER_OF_STRINGS)
-			{
-				input->memory_ptr->answer_write_index = 0;
-			}
-			if (sem_post(input->mutex) == -1)
-			{
-				printf("Error while waiting for PROCESSED_COMMAND mutex\n");
-				free(input);
-				exit(EXIT_FAILURE);
-			}
-			if (sem_post(input->sem_answer_count) == -1)
-			{
-				printf("Error while waiting for sem_answer_count\n");
-				free(input);
-				// TODO: Release shared memory
-				exit(EXIT_FAILURE);
-			}
-			return NULL;
+			strncpy(answer, "Key and value need to be separated by ,", 40);
 		}
-		char *key = strsep(&attributes, ",");
-		char *value = strsep(&attributes, ",");
-
-		char *error = insert_entry(input->table, key, value, p);
-
-		if (error)
+		else
 		{
-			if (sem_wait(input->sem_free_answers) == -1)
-			{
-				printf("Error while waiting for sem_free_answers\n");
-				free(input);
-				// TODO: Release shared memory
-				exit(EXIT_FAILURE);
-			}
-			if (sem_wait(input->mutex) == -1)
-			{
-				printf("Error while waiting for mutex\n");
-				free(input);
-				free(error);
-				exit(EXIT_FAILURE);
-			}
+			char *key = strsep(&attributes, ",");
+			char *value = strsep(&attributes, ",");
 
-			strncpy(input->memory_ptr->answers[input->memory_ptr->answer_write_index], error, strlen(error));
-			input->memory_ptr->answer_write_index++;
-			if (input->memory_ptr->answer_write_index == MAX_NUMBER_OF_STRINGS)
-			{
-				input->memory_ptr->answer_write_index = 0;
-			}
-			if (sem_post(input->mutex) == -1)
-			{
-				printf("Error while waiting for PROCESSED_COMMAND mutex\n");
-				free(input);
-				free(error);
-				exit(EXIT_FAILURE);
-			}
-			if (sem_post(input->sem_answer_count) == -1)
-			{
-				printf("Error while waiting for sem_answer_count\n");
-				free(input);
-				// TODO: Release shared memory
-				exit(EXIT_FAILURE);
-			}
-			// printf("The value for the key \"key\": \"%s\" \n", entry->value);
-			free(input);
+			char *error = insert_entry(input->table, key, value, p);
+
 			if (error)
 			{
-				free(error);
+				strncpy(answer, error, strlen(error));
 			}
-			return NULL;
 		}
+	}
+	if (sem_wait(input->sem_free_answers) == -1)
+	{
+		printf("Error while waiting for sem_free_answers\n");
 		free(input);
-		return NULL;
+		// TODO: Release shared memory
+		exit(EXIT_FAILURE);
+	}
+	if (sem_wait(input->mutex) == -1)
+	{
+		printf("Error while waiting for mutex\n");
+		free(input);
+		// TODO: Release shared memory
+		exit(EXIT_FAILURE);
+	}
+	strncpy(input->memory_ptr->answers[input->memory_ptr->answer_write_index], input->input_id, 3);
+	strncpy(input->memory_ptr->answers[input->memory_ptr->answer_write_index] + 3, answer, strlen(answer));
+	free(answer);
+	// else
+	//	snprintf(input->memory_ptr->answers[input->memory_ptr->answer_write_index], 30 + strlen(entry->key) + strlen(entry->value), "The value for the key \"%s\": \"%s\" \n", entry->key, entry->value);
+
+	input->memory_ptr->answer_write_index++;
+	if (input->memory_ptr->answer_write_index == MAX_NUMBER_OF_STRINGS)
+	{
+		input->memory_ptr->answer_write_index = 0;
+	}
+	if (sem_post(input->mutex) == -1)
+	{
+		printf("Error while waiting for mutex\n");
+		free(input);
+		exit(EXIT_FAILURE);
+	}
+	if (sem_post(input->sem_answer_count) == -1)
+	{
+		printf("Error while waiting for mutex\n");
+		free(input);
+		exit(EXIT_FAILURE);
 	}
 	free(input);
 	return NULL;
 }
 
-void start_multithreaded_input_processing(struct Table table, char *input, pthread_t *threadId, struct SharedMemory *memory_ptr, sem_t *mutex, sem_t *sem_free_answers, sem_t *sem_answer_count)
+void start_multithreaded_input_processing(struct Table table, char *input, char *input_id, pthread_t *threadId, struct SharedMemory *memory_ptr, sem_t *mutex, sem_t *sem_free_answers, sem_t *sem_answer_count)
 {
 	struct InputProcessingInfo *processing_info = malloc(sizeof(struct InputProcessingInfo));
 	if (!processing_info)
@@ -216,6 +105,7 @@ void start_multithreaded_input_processing(struct Table table, char *input, pthre
 	}
 	processing_info->table = table;
 	processing_info->input = strdup(input);
+	processing_info->input_id = strdup(input_id);
 	processing_info->memory_ptr = memory_ptr;
 	processing_info->mutex = mutex;
 	processing_info->sem_free_answers = sem_free_answers;

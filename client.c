@@ -188,6 +188,7 @@ void communicate_with_server()
 		exit(1);
 	};*/
 	char *command = malloc(MAX_SIZE_OF_COMMAND);
+	char *command_id = malloc(3);
 	printf("Command: ");
 	while (fgets(command, MAX_SIZE_OF_COMMAND, stdin))
 	{
@@ -213,8 +214,13 @@ void communicate_with_server()
 				printf("Error while waiting for mutex\n");
 				exit(1);
 			}
-			printf("Sending request\n");
-			strncpy(shared_memory_ptr->requests[shared_memory_ptr->request_write_index], command, MAX_SIZE_OF_COMMAND);
+			// printf("Sending request\n");
+
+			// Append the index to the request to use as an id when recognizing the answer
+			snprintf(command_id, 3, "%02d", shared_memory_ptr->request_write_index);
+			snprintf(shared_memory_ptr->requests[shared_memory_ptr->request_write_index], 3, "%02d", shared_memory_ptr->request_write_index);
+			strncpy((shared_memory_ptr->requests[shared_memory_ptr->request_write_index]) + 3, command, MAX_SIZE_OF_COMMAND);
+			// printf("%s", shared_memory_ptr->requests[shared_memory_ptr->request_write_index] + 3);
 			shared_memory_ptr->request_write_index++;
 			if (shared_memory_ptr->request_write_index == MAX_NUMBER_OF_STRINGS)
 			{
@@ -241,12 +247,19 @@ void communicate_with_server()
 				exit(1);
 			}
 
-			if (strncmp(shared_memory_ptr->answers[shared_memory_ptr->answer_read_index], "exit", 4) == 0)
+			if (strncmp(shared_memory_ptr->answers[shared_memory_ptr->answer_read_index] + 3, "exit", 4) == 0)
 			{
 				exit(1);
 			}
 			// if (*(shared_memory_ptr->answers[shared_memory_ptr->answer_read_index]) != '\0')
-			printf("Answer: %s\n", shared_memory_ptr->answers[shared_memory_ptr->answer_read_index]);
+			int i = 0;
+			while (i < 32 && strncmp(shared_memory_ptr->answers[i], command_id, 3) != 0)
+				i++;
+			if (i != 32)
+				printf("Answer: %s\n", shared_memory_ptr->answers[shared_memory_ptr->answer_read_index] + 3);
+			else
+				printf("Answer: SOmething went wrong \n");
+
 			//*(shared_memory_ptr->answers[shared_memory_ptr->answer_read_index]) = '\0';
 			shared_memory_ptr->answer_read_index++;
 			if (shared_memory_ptr->answer_read_index == MAX_NUMBER_OF_STRINGS)
@@ -273,41 +286,20 @@ void communicate_with_server()
 void exit_programm(sem_t *mutex_shared_mem, sem_t *sem_command_count, struct SharedMemory *shared_memory_ptr, int code)
 {
 	printf("Exiting client\n");
-	/*if (sem_wait(mutex_shared_mem) == -1)
-	{
-		printf("Error while waiting for mutes");
-		exit(1);
-	}
-	strcpy(shared_memory_ptr->requests[shared_memory_ptr->request_write_index], "exit");
-
-	if (sem_post(mutex_shared_mem) == -1)
-	{
-		printf("Coulnd't release mutex\n");
-		exit(1);
-	}
-	if (sem_post(sem_command_count) == -1)
-	{
-		printf("Coulnd't release mutex\n");
-		exit(1);
-	}*/
 	if (munmap(shared_memory_ptr, sizeof(struct SharedMemory)) != 0)
 	{
 		printf("Error unmapping shared memory\n");
 		exit(1);
 	}
-	printf("Exit sucessfull1\n");
 	if (sem_close(sem_command_count) != 0)
 	{
 		printf("Error closing the mutex\n");
 		exit(1);
 	}
-	printf("Exit sucessfull2\n");
-
 	if (sem_close(mutex_shared_mem) != 0)
 	{
 		printf("Error closing the mutex\n");
 		exit(1);
 	}
-	printf("Exit sucessfull\n");
 	exit(code);
 }

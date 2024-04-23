@@ -80,14 +80,15 @@ void communicate_with_clients(struct Table table)
 	shared_memory_ptr->answer_read_index = 0;
 
 	char *command = calloc(1, MAX_SIZE_OF_COMMAND);
-	bool exiting = false;
+	char *input_id = calloc(1, 3);
+	// bool exiting = false;
 	if (sem_post(mutex_shared_mem) == -1)
 	{
 		printf("Coulnd't release mutex\n");
 		exit(1);
 	}
 	printf("Server initialized successfully!\n");
-	while (!exiting)
+	while (1)
 	{
 		if (current_number_of_threads == MAX_NUMBER_OF_THREADS)
 		{
@@ -102,10 +103,6 @@ void communicate_with_clients(struct Table table)
 			}
 			// printf("Joined all Threads\n");
 		}
-		/*int semval;
-		sem_getvalue(sem_command_count, &semval);
-		printf("%d", semval);
-		printf("Aquiring semaphores1\n");*/
 		if (sem_wait(sem_command_count) == -1)
 		{
 			printf("Error while waiting for sem_commands_count\n");
@@ -117,15 +114,17 @@ void communicate_with_clients(struct Table table)
 			printf("Error while waiting for mutex\n");
 			exit(EXIT_FAILURE);
 		}
-		printf("Reading command \n");
-		strncpy(command, shared_memory_ptr->requests[shared_memory_ptr->request_read_index], MAX_SIZE_OF_COMMAND);
-		if (strncmp(command, "exit", 4) == 0)
+		// printf("Reading command \n");
+		strncpy(input_id, shared_memory_ptr->requests[shared_memory_ptr->request_read_index], 3);
+		strncpy(command, shared_memory_ptr->requests[shared_memory_ptr->request_read_index] + 3, MAX_SIZE_OF_COMMAND - 3);
+		// printf("Reading command %s %s \n", command, command + 3);
+
+		/*if (strncmp(command, "exit", 4) == 0)
 		{
 
 			exiting = true;
-		}
+		}*/
 
-		//*shared_memory_ptr->requests[shared_memory_ptr->request_read_index] = '\0';
 		shared_memory_ptr->request_read_index++;
 		if (shared_memory_ptr->request_read_index == MAX_NUMBER_OF_STRINGS)
 		{
@@ -143,8 +142,8 @@ void communicate_with_clients(struct Table table)
 			// TODO: Release shared memory
 			exit(EXIT_FAILURE);
 		}
-		printf("start processing\n");
-		start_multithreaded_input_processing(table, command, &thread_ids[current_number_of_threads], shared_memory_ptr, mutex_shared_mem, sem_free_answers, sem_answer_count);
+		// printf("start processing\n");
+		start_multithreaded_input_processing(table, command, input_id, &thread_ids[current_number_of_threads], shared_memory_ptr, mutex_shared_mem, sem_free_answers, sem_answer_count);
 		// printf("end processing\n");
 		current_number_of_threads++;
 	}
