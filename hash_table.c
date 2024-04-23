@@ -18,7 +18,7 @@ struct Table *initialize_table(unsigned int size)
 	hash_table->number_of_elements = 0;
 	return hash_table;
 }
-char *insert_entry(struct Table table, char *key, char *value)
+char *insert_entry(struct Table table, char *key, char *value, pthread_rwlock_t *p)
 {
 	struct TableEntry *newEntry = malloc(sizeof(struct TableEntry));
 	if (!newEntry)
@@ -42,11 +42,25 @@ char *insert_entry(struct Table table, char *key, char *value)
 	newEntry->next = NULL;
 	newEntry->error = NULL;
 	unsigned long index = hash(key) % table.size;
+	if (pthread_rwlock_wrlock(p) != 0)
+	{
+		printf("Locking failed. Aborting operation");
+		// free(input);
+		exit(EXIT_FAILURE);
+	}
 
 	if (table.entries[index] == 0)
 	{
 		table.entries[index] = newEntry;
 		table.number_of_elements++;
+
+		if (pthread_rwlock_unlock(p) != 0)
+		{
+
+			printf("Unlocking failed. Aborting operation");
+			exit(EXIT_FAILURE);
+			// printf("The value for the key \"key\": \"%s\" \n", entry->value);
+		}
 		char *error = malloc(3);
 		snprintf(error, 3, "Ok");
 		return error;
@@ -56,6 +70,13 @@ char *insert_entry(struct Table table, char *key, char *value)
 		struct TableEntry *currentEntry = table.entries[index];
 		if (strcmp(currentEntry->key, key) == 0)
 		{
+			if (pthread_rwlock_unlock(p) != 0)
+			{
+
+				printf("Unlocking failed. Aborting operation");
+				exit(EXIT_FAILURE);
+				// printf("The value for the key \"key\": \"%s\" \n", entry->value);
+			}
 			char *error = malloc(38 + sizeof(key));
 			snprintf(error, 50 + sizeof(key), "The key \"%s\" already exists and can't be inserted!", key);
 			return error;
@@ -64,6 +85,13 @@ char *insert_entry(struct Table table, char *key, char *value)
 		{
 			if (strcmp(currentEntry->key, key) == 0)
 			{
+				if (pthread_rwlock_unlock(p) != 0)
+				{
+
+					printf("Unlocking failed. Aborting operation");
+					exit(EXIT_FAILURE);
+					// printf("The value for the key \"key\": \"%s\" \n", entry->value);
+				}
 				char *error = malloc(38 + sizeof(key));
 				snprintf(error, 50 + sizeof(key), "The key \"%s\" already exists and can't be inserted!", key);
 				return error;
@@ -72,17 +100,37 @@ char *insert_entry(struct Table table, char *key, char *value)
 		}
 		currentEntry->next = newEntry;
 	}
+
+	if (pthread_rwlock_unlock(p) != 0)
+	{
+
+		printf("Unlocking failed. Aborting operation");
+
+		exit(EXIT_FAILURE);
+		// printf("The value for the key \"key\": \"%s\" \n", entry->value);
+	}
 	char *error = malloc(3);
 	snprintf(error, 3, "Ok");
 	return error;
 }
-struct TableEntry *read_entry(struct Table table, char *key)
+struct TableEntry *read_entry(struct Table table, char *key, pthread_rwlock_t *p)
 {
 	unsigned long index = hash(key) % table.size;
+	if (pthread_rwlock_rdlock(p) != 0)
+	{
+		printf("Locking failed. Aborting operation");
+		exit(EXIT_FAILURE);
+	}
+
 	struct TableEntry *current_entry = table.entries[index];
 
 	if (current_entry != 0 && strcmp((current_entry->key), key) == 0)
 	{
+		if (pthread_rwlock_unlock(p) != 0)
+		{
+			printf("Unlocking failed. Aborting operation");
+			exit(EXIT_FAILURE);
+		}
 		return current_entry;
 	}
 
@@ -91,8 +139,18 @@ struct TableEntry *read_entry(struct Table table, char *key)
 		current_entry = current_entry->next;
 		if (strcmp(current_entry->key, key) == 0)
 		{
+			if (pthread_rwlock_unlock(p) != 0)
+			{
+				printf("Unlocking failed. Aborting operation");
+				exit(EXIT_FAILURE);
+			}
 			return current_entry;
 		}
+	}
+	if (pthread_rwlock_unlock(p) != 0)
+	{
+		printf("Unlocking failed. Aborting operation");
+		exit(EXIT_FAILURE);
 	}
 	struct TableEntry *error_entry = calloc(1, sizeof(struct TableEntry));
 	error_entry->error = malloc(38 + sizeof(key));
@@ -101,15 +159,30 @@ struct TableEntry *read_entry(struct Table table, char *key)
 	return error_entry;
 }
 
-char *delete_entry(struct Table table, char *key)
+char *delete_entry(struct Table table, char *key, pthread_rwlock_t *p)
 {
-	table.number_of_elements -= 1;
 	unsigned long index = hash(key) % table.size;
+	if (p != NULL && pthread_rwlock_wrlock(p) != 0)
+	{
+		printf("Locking failed. Aborting operation");
+		// free(input);
+		exit(EXIT_FAILURE);
+	}
+
 	struct TableEntry *current_entry = table.entries[index];
 
 	if (current_entry != 0 && strcmp((current_entry->key), key) == 0)
 	{
+		table.number_of_elements -= 1;
 		table.entries[index] = 0;
+		if (p != NULL && pthread_rwlock_unlock(p) != 0)
+		{
+
+			printf("Unlocking failed. Aborting operation");
+
+			exit(EXIT_FAILURE);
+			// printf("The value for the key \"key\": \"%s\" \n", entry->value);
+		}
 		free(current_entry->key);
 		free(current_entry->value);
 		free(current_entry);
@@ -122,7 +195,16 @@ char *delete_entry(struct Table table, char *key)
 	{
 		if (strcmp(current_entry->next->key, key) == 0)
 		{
+			table.number_of_elements -= 1;
 			current_entry->next = current_entry->next->next;
+			if (p != NULL && pthread_rwlock_unlock(p) != 0)
+			{
+
+				printf("Unlocking failed. Aborting operation");
+
+				exit(EXIT_FAILURE);
+				// printf("The value for the key \"key\": \"%s\" \n", entry->value);
+			}
 			free(current_entry->next->key);
 			free(current_entry->next->value);
 			free(current_entry->next);
@@ -132,7 +214,14 @@ char *delete_entry(struct Table table, char *key)
 		}
 		current_entry = current_entry->next;
 	}
+	if (p != NULL && pthread_rwlock_unlock(p) != 0)
+	{
 
+		printf("Unlocking failed. Aborting operation");
+
+		exit(EXIT_FAILURE);
+		// printf("The value for the key \"key\": \"%s\" \n", entry->value);
+	}
 	char *error = malloc(38 + sizeof(key));
 	snprintf(error, 38 + sizeof(key), "The key \"%s\" doesn't exist in the table!\n", key);
 
@@ -143,7 +232,7 @@ void delete_table(struct Table *table)
 {
 	for (int i = 0; i < table->number_of_elements; i++)
 	{
-		delete_entry(*table, table->entries[i]->key);
+		delete_entry(*table, table->entries[i]->key, NULL);
 	}
 	free(table->entries);
 	free(table);

@@ -125,7 +125,7 @@ void communicate_with_clients(struct Table table)
 			exiting = true;
 		}
 
-		*shared_memory_ptr->requests[shared_memory_ptr->request_read_index] = '\0';
+		//*shared_memory_ptr->requests[shared_memory_ptr->request_read_index] = '\0';
 		shared_memory_ptr->request_read_index++;
 		if (shared_memory_ptr->request_read_index == MAX_NUMBER_OF_STRINGS)
 		{

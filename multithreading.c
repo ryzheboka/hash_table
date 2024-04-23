@@ -9,22 +9,8 @@ void *process_input(void *process_input)
 	pthread_rwlock_t *p = (pthread_rwlock_t *)&lock_rw;
 	if (strncmp(input->input, "read ", 5) == 0)
 	{
-		if (pthread_rwlock_rdlock(p) != 0)
-		{
-			printf("Locking failed. Aborting operation");
-			free(input);
-			exit(EXIT_FAILURE);
-		}
-		// printf("Read lock succeeded\n");
-		struct TableEntry *entry = read_entry(input->table, input->input + 5);
-		if (pthread_rwlock_unlock(p) != 0)
-		{
-			printf("Unlocking failed. Aborting operation");
-			free(input);
-			exit(EXIT_FAILURE);
-		}
+		struct TableEntry *entry = read_entry(input->table, input->input + 5, p);
 
-		// printf("The value for the key \"%s\": \"%s\" \n", entry->key, entry->value);
 		if (sem_wait(input->sem_free_answers) == -1)
 		{
 			printf("Error while waiting for sem_free_answers\n");
@@ -73,25 +59,7 @@ void *process_input(void *process_input)
 
 	if (strncmp(input->input, "delete ", 7) == 0)
 	{
-		if (pthread_rwlock_wrlock(p) != 0)
-		{
-			printf("Locking failed. Aborting operation");
-			free(input);
-
-			exit(EXIT_FAILURE);
-		}
-		// printf("Read lock succeeded\n");
-		char *error = delete_entry(input->table, input->input + 7);
-		if (pthread_rwlock_unlock(p) != 0)
-		{
-			printf("Unlocking failed. Aborting operation");
-			free(input);
-			if (error)
-			{
-				free(error);
-			}
-			exit(EXIT_FAILURE);
-		}
+		char *error = delete_entry(input->table, input->input + 7, p);
 		if (error)
 		{
 			if (sem_wait(input->sem_free_answers) == -1)
@@ -183,29 +151,9 @@ void *process_input(void *process_input)
 		}
 		char *key = strsep(&attributes, ",");
 		char *value = strsep(&attributes, ",");
-		// printf("kkkey: %s, vvvvlue: %s\n", key, value);
 
-		if (pthread_rwlock_wrlock(p) != 0)
-		{
-			printf("Locking failed. Aborting operation");
-			free(input);
-			exit(EXIT_FAILURE);
-		}
+		char *error = insert_entry(input->table, key, value, p);
 
-		// printf("Lock succeded!\n");
-		char *error = insert_entry(input->table, key, value);
-		if (pthread_rwlock_unlock(p) != 0)
-		{
-
-			printf("Unlocking failed. Aborting operation");
-			free(input);
-			if (error)
-			{
-				free(error);
-			}
-			exit(EXIT_FAILURE);
-			// printf("The value for the key \"key\": \"%s\" \n", entry->value);
-		}
 		if (error)
 		{
 			if (sem_wait(input->sem_free_answers) == -1)
@@ -254,8 +202,8 @@ void *process_input(void *process_input)
 		free(input);
 		return NULL;
 	}
-	return NULL;
 	free(input);
+	return NULL;
 }
 
 void start_multithreaded_input_processing(struct Table table, char *input, pthread_t *threadId, struct SharedMemory *memory_ptr, sem_t *mutex, sem_t *sem_free_answers, sem_t *sem_answer_count)

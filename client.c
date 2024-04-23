@@ -245,9 +245,9 @@ void communicate_with_server()
 			{
 				exit(1);
 			}
-			if (*(shared_memory_ptr->answers[shared_memory_ptr->answer_read_index]) != '\0')
-				printf("Answer: %s\n", shared_memory_ptr->answers[shared_memory_ptr->answer_read_index]);
-			*(shared_memory_ptr->answers[shared_memory_ptr->answer_read_index]) = '\0';
+			// if (*(shared_memory_ptr->answers[shared_memory_ptr->answer_read_index]) != '\0')
+			printf("Answer: %s\n", shared_memory_ptr->answers[shared_memory_ptr->answer_read_index]);
+			//*(shared_memory_ptr->answers[shared_memory_ptr->answer_read_index]) = '\0';
 			shared_memory_ptr->answer_read_index++;
 			if (shared_memory_ptr->answer_read_index == MAX_NUMBER_OF_STRINGS)
 			{
